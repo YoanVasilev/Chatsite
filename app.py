@@ -2,10 +2,17 @@ from flask import Flask, render_template, request, session, redirect, url_for
 from flask_socketio import SocketIO, send, emit, join_room, leave_room
 import random
 from string import ascii_uppercase 
+from werkzeug.security import check_password_hash, generate_password_hash
+import sqlite3
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "gosho"
 socketio = SocketIO(app)
+
+conn = sqlite3.connect('database.db')
+db = conn.cursor()
+
+
 
 rooms = {}
 
@@ -46,6 +53,44 @@ def index():
         return redirect(url_for("room"))
 
     return render_template("index.html")
+
+@app.route("/register", methods=["POST", "GET"])
+def register():
+    session.clear()
+
+    if request.method == "POST":
+        # Ensure username was submitted
+        if not request.form.get("username"):
+            return render_template("register.html", error="Place enter a username.")
+
+        # Ensure password was submitted
+        elif not request.form.get("password"):
+            return render_template("register.html", error="Pleace enter a password.")
+
+        # Ensure confirm password was submitted
+        elif not request.form.get("confirmation"):
+            return render_template("register.html", error="Pleace submit a confirmation password")
+
+        # Ensure passwords are the same
+        if request.form.get("password") != request.form.get("confirmation"):
+            return render_template("register.html", error="Passwords do not match.")
+
+        # Ensure username is free
+        name_check = db.execute("SELECT username FROM users WHERE username= ?", request.form.get("username"))
+        if request.form.get("username") == name_check:
+            return render_template("register.html", error="Username already taken.")
+
+        # Insert the new user into users
+
+        user_name = request.form.get("username")
+        hash_pass = generate_password_hash(request.form.get("password"))
+        db.execute("INSERT INTO users (username, hash) VALUES(?, ?)", user_name, hash_pass)
+        return redirect("/")
+
+
+    else:
+        return render_template("register.html")
+
 
 @app.route("/room")
 def room():
