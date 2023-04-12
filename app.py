@@ -1,18 +1,38 @@
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for, g
 from flask_socketio import SocketIO, send, emit, join_room, leave_room
 import random
 from string import ascii_uppercase 
 from werkzeug.security import check_password_hash, generate_password_hash
 import sqlite3
+from queue import Queue
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "gosho"
 socketio = SocketIO(app)
 
-conn = sqlite3.connect('database.db')
-db = conn.cursor()
+class ConnectionPool:
+    def __init__(self, max_connections=5, database='database.db'):
+        self.database = database
+        self.max_connections = max_connections
+        self.connection_pool = Queue(maxsize=max_connections)
+
+        for _ in range(max_connections):
+            self.connection_pool.put(sqlite3.connect(self.database))
+
+    def get_connection(self):
+        conn = getattr(g, '_database_connection', None)
+        if conn is None:
+            conn = self.connection_pool.get()
+            g._database_connection = conn
+        return conn
+
+    def release_connection(self, conn):
+        self.connection_pool.put(conn)
+        g._database_connection = None
 
 
+pool = ConnectionPool()
 
 rooms = {}
 
@@ -74,22 +94,30 @@ def register():
         # Ensure passwords are the same
         if request.form.get("password") != request.form.get("confirmation"):
             return render_template("register.html", error="Passwords do not match.")
+        
+        # make a connection to the database by taking one from the connection pool
+        conn = pool.get_connection()
+        cursor = conn.cursor()
 
         # Ensure username is free
-        name_check = db.execute("SELECT username FROM users WHERE username= ?", request.form.get("username"))
-        if request.form.get("username") == name_check:
+        name_cursor = cursor.execute("SELECT username FROM users WHERE username= ?", (request.form.get("username")))
+        name_check = cursor.fetchone()
+        if name_check is not None:
+            pool.release_connection(conn)
             return render_template("register.html", error="Username already taken.")
 
         # Insert the new user into users
 
         user_name = request.form.get("username")
         hash_pass = generate_password_hash(request.form.get("password"))
-        db.execute("INSERT INTO users (username, hash) VALUES(?, ?)", user_name, hash_pass)
+
+        cursor.execute("INSERT INTO users (username, hash) VALUES(?, ?)", (user_name, hash_pass))
+        conn.commit()
+        pool.release_connection(conn)
         return redirect("/")
+    
+    return render_template("register.html")
 
-
-    else:
-        return render_template("register.html")
 
 
 @app.route("/room")
