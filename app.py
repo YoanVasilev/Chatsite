@@ -95,25 +95,28 @@ def register():
         if request.form.get("password") != request.form.get("confirmation"):
             return render_template("register.html", error="Passwords do not match.")
         
-        # make a connection to the database by taking one from the connection pool
+        # make a connection to the database
         conn = pool.get_connection()
         cursor = conn.cursor()
 
         # Ensure username is free
-        name_cursor = cursor.execute("SELECT username FROM users WHERE username= ?", (request.form.get("username")))
-        name_check = cursor.fetchone()
-        if name_check is not None:
-            pool.release_connection(conn)
-            return render_template("register.html", error="Username already taken.")
+        with pool.get_connection() as conn:
+            cursor = conn.cursor()
+            name_cursor = cursor.execute("SELECT username FROM users WHERE username= ?", (request.form.get("username"),))
+            name_check = cursor.fetchone()
+            if name_check:
+                return render_template("register.html", error="Username already taken.")
 
         # Insert the new user into users
+        # Insert the new user into users
 
-        user_name = request.form.get("username")
-        hash_pass = generate_password_hash(request.form.get("password"))
+            # Insert the new user into users
 
-        cursor.execute("INSERT INTO users (username, hash) VALUES(?, ?)", (user_name, hash_pass))
-        conn.commit()
-        pool.release_connection(conn)
+            user_name = request.form.get("username")
+            hash_pass = generate_password_hash(request.form.get("password"))
+            cursor.execute("INSERT INTO users (username, hash) VALUES(?, ?)", (user_name, hash_pass))
+            conn.commit()
+
         return redirect("/")
     
     return render_template("register.html")
