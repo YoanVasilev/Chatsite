@@ -4,35 +4,10 @@ import random
 from string import ascii_uppercase 
 from werkzeug.security import check_password_hash, generate_password_hash
 import sqlite3
-from queue import Queue
-
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "gosho"
 socketio = SocketIO(app)
-
-class ConnectionPool:
-    def __init__(self, max_connections=5, database='database.db'):
-        self.database = database
-        self.max_connections = max_connections
-        self.connection_pool = Queue(maxsize=max_connections)
-
-        for _ in range(max_connections):
-            self.connection_pool.put(sqlite3.connect(self.database))
-
-    def get_connection(self):
-        conn = getattr(g, '_database_connection', None)
-        if conn is None:
-            conn = self.connection_pool.get()
-            g._database_connection = conn
-        return conn
-
-    def release_connection(self, conn):
-        self.connection_pool.put(conn)
-        g._database_connection = None
-
-
-pool = ConnectionPool()
 
 rooms = {}
 
@@ -96,7 +71,7 @@ def register():
             return render_template("register.html", error="Passwords do not match.")
         
         # make a connection to the database by taking one from the connection pool
-        conn = pool.get_connection()
+        sqlite3.connect
         cursor = conn.cursor()
 
         # Ensure username is free
