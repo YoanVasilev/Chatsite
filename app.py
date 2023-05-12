@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, session, redirect, url_for, g
+from flask import Flask, render_template, request, session, redirect, url_for
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required
 from flask_socketio import SocketIO, send, emit, join_room, leave_room
 import random
 from string import ascii_uppercase 
@@ -8,6 +9,18 @@ import sqlite3
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "gosho"
 socketio = SocketIO(app)
+app.config['DATABASE'] = 'database.db'
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+class User(UserMixin):
+    def __init__(self, id):
+        self.id = id
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User(user_id)
 
 rooms = {}
 
@@ -23,7 +36,7 @@ def generate_code(length):
 
 @app.route("/", methods=["POST", "GET"])
 def index():
-    session.clear()
+    
     if request.method == "POST":
         name = request.form.get("name")
         code = request.form.get("code")
@@ -49,6 +62,56 @@ def index():
 
     return render_template("index.html")
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Log user in"""
+
+    # Forget any user_id
+    session.clear()
+
+    if request.method == "POST":
+
+        # Ensure username was submitted
+        if not request.form.get("username"):
+            return render_template("login.html", error="Place enter a username.")
+
+        # Ensure password was submitted
+        elif not request.form.get("password"):
+            return render_template("login.html", error="Place enter a password.")
+
+        conn = sqlite3.connect('database.db')
+
+
+        # Query database for username
+        rows = conn.execute("SELECT * FROM users WHERE username = ?", (request.form.get("username"),))
+        user = rows.fetchall()
+        # Ensure username exists and password is correct
+        if len(user) != 1 or not check_password_hash(user[0][2], request.form.get("password")):
+            return render_template("login.html", error="Wrong username or password.")
+        conn.commit()
+        conn.close()
+        # save user information in session
+        session["username"] = user[0][1]
+        session["user_id"] = user[0][0]
+        user_id = user[0][0]
+        user = User(user_id)
+        login_user(user)
+
+        # Redirect user to home page
+        return redirect("/")
+
+    # User reached route via GET (as by clicking a link or via redirect)
+    else:
+        return render_template("login.html")
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect("/")
+
+
 @app.route("/register", methods=["POST", "GET"])
 def register():
     session.clear()
@@ -70,26 +133,23 @@ def register():
         if request.form.get("password") != request.form.get("confirmation"):
             return render_template("register.html", error="Passwords do not match.")
         
-        # make a connection to the database by taking one from the connection pool
-        sqlite3.connect
-        cursor = conn.cursor()
+        # connection to the database
+        conn = sqlite3.connect('database.db')
+        
 
         # Ensure username is free
-        name_cursor = cursor.execute("SELECT username FROM users WHERE username= ?", (request.form.get("username")))
-        name_check = cursor.fetchone()
-        if name_check is not None:
-            pool.release_connection(conn)
+        name_check = conn.execute("SELECT username FROM users WHERE username= ?", (request.form.get("username"),))
+        if name_check.fetchall():
             return render_template("register.html", error="Username already taken.")
 
         # Insert the new user into users
-
         user_name = request.form.get("username")
         hash_pass = generate_password_hash(request.form.get("password"))
 
-        cursor.execute("INSERT INTO users (username, hash) VALUES(?, ?)", (user_name, hash_pass))
+        conn.execute("INSERT INTO users (username, hash) VALUES(?, ?)", (user_name, hash_pass))
         conn.commit()
-        pool.release_connection(conn)
-        return redirect("/")
+        conn.close()
+        return redirect("/login")
     
     return render_template("register.html")
 
