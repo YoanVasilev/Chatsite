@@ -1,10 +1,11 @@
 from flask import Flask, render_template, request, session, redirect, url_for
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO, send, emit, join_room, leave_room
 import random
 from string import ascii_uppercase 
 from werkzeug.security import check_password_hash, generate_password_hash
 import sqlite3
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "gosho"
@@ -17,6 +18,7 @@ login_manager.init_app(app)
 class User(UserMixin):
     def __init__(self, id):
         self.id = id
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -62,6 +64,32 @@ def index():
 
     return render_template("index.html")
 
+@app.route("/<username>", methods=["POST", "GET"])
+@login_required
+def foo(username):
+    if request.method == "POST":
+            code = request.form.get("code")
+            join = request.form.get("join", False)
+            create = request.form.get("create", False)
+            
+            if join != False and not code:
+                return render_template("index.html", error="Please enter a room code.", code=code)
+
+            room = code
+            if create != False:
+                room = generate_code(4)
+                rooms[room] = {"members" : 0, "messages": []}
+            elif code not in rooms:
+                return render_template("index.html", error="Room does not exist", code=code)
+            
+            session["room"] = room
+            session ["name"] = username
+            return redirect(url_for("room"))
+
+    return render_template("main.html")
+
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     """Log user in"""
@@ -98,7 +126,7 @@ def login():
         login_user(user)
 
         # Redirect user to home page
-        return redirect("/")
+        return redirect("/{}".format(session["username"]))
 
     # User reached route via GET (as by clicking a link or via redirect)
     else:
@@ -153,6 +181,26 @@ def register():
     
     return render_template("register.html")
 
+@app.route("/private", methods=["POST", "GET"])
+def private():
+    if request.method == "POST":
+        username = current_user.username
+        recipient_username = request.form.get("username")
+        message = request.form.get("msg")
+        current_time = datetime.now()
+
+        conn = sqlite3.connect('database.db')
+
+        conn.execute("INSERT INTO private_chats (username1, username2, messages, date) VALUES(?, ?, ?, ?)", (username, recipient_username, message, current_time))
+
+        ## conn.commit()
+        conn.close()
+        room = generate_code(5)
+        rooms[room] = {"members" : 0, "messages": []}
+        session["room"] = room
+        session ["name"] = username ## nameri kak da slojish idto na usera v private.html i da mi pratish invite koito da go redirectva v chat staqta
+        return redirect(url_for("room"))
+
 
 
 @app.route("/room")
@@ -161,6 +209,11 @@ def room():
     if room is None or session.get("name") is None or room not in rooms:
         return redirect(url_for("index"))
     return render_template("room.html", code=room, messages=rooms[room]["messages"])
+
+@socketio.on("invite")
+def invite_onsend(data):
+    recipient_username = data["username"]  # working on it
+
 
 @socketio.on("message")
 def message(data):
