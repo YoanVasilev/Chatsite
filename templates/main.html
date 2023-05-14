@@ -1,62 +1,49 @@
-{% extends 'base.html' %}
-{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Chat Site</title>
+    <link rel="stylesheet" href="{{url_for('static', filename='css/style.css')}}"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+    <script src="//code.jquery.com/jquery-1.11.1.js"></script>
+  </head>
+
+
+
+  <body>
+    <div class="content">
+      {% block content %} {% endblock %}
+    </div>
     <form method="post" class="buttons">
-        <h1>Enter The Chat Room</h1>
-        <div class="join">
-            <input type="text" placeholder="Room Code" name="code" value="{{code}}"/>
-            <button type="submit" name="join" >Join a Room</button>
-        </div>
-        <button type="submit" name="create" class="create-btn">Create a Room</button>
-        <h2>Invite a person to 1 on 1 chat room</h2>
-        <input type="text" placeholder="username" name="username" id="username"/>
-        <button type="button" name="invite" id="invite-btn" onclick="sendInvite()"> Invite </button>
-        {% if error %}
-        <ul>
-            <li>
-                {{error}}
-            </li>
-        </ul>
-        {% endif %}
+      <h1>Enter The Chat Room</h1>
+      <div class="join">
+        <input type="text" placeholder="Room Code" name="code" value="{{code or ''}}"/>
+        <button type="submit" name="join" >Join a Room</button>
+      </div>
+      <button type="submit" name="create" class="create-btn">Create a Room</button>
+      <h2>Invite a person to 1 on 1 chat room</h2>
+      <input type="text" placeholder="username" name="username" id="username"/>
+      <button type="button" name="invite" id="invite-btn"> Invite </button>
+      {% if error %}
+      <ul>
+        <li>{{error}}</li>
+      </ul>
+      {% endif %}
     </form>
+
     <script type="text/javascript">
-      var socketio = io();
-    
-     //   const messages = document.getElementById("messages");
-    
-     /*
-        socketio.on("invite", (data) => {
-            createMessage(data.name, data.message);
-        }); 
-    */
-        const sendInvite = () => {
-            const username = document.getElementById("username");
-            if (username.value == "") return;
-            socketio.emit("invite", {data: username.value});
-            username.value = "";
-        };
+    var socketio = io()
+          
+    $('#invite-btn').click(function() {
+    var username = $('#username').val();
+        socket.emit('invite', {username: username});
+        });
+          
+    socket.on('receive_invite', function(data) {
+    alert('You have been invited to chat by ' + data.sender);
+    });
+        
     </script>
+  </body>
+</html>
 
-{% endblock %}
-
-<!--
-         const createMessage = (name, msg) => {
-            const content = `
-            <div class="text">
-                <span>
-                    <strong>${name}</strong>: ${msg}
-                </span>
-                <span class="muted">
-                    ${new Date().toLocaleString()}  Show local time, need to find better way cuz it shows the time when messages are recieved by the server not sent 
-                </span>
-            </div>
-        `;
-
-        messages.innerHTML += content;
-
-    };
-
-  socketio.on("invite", (data) => {
-     createMessage(data.name, data.message);
-    }); 
-
--->
