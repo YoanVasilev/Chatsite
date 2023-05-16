@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user, user_logged_in, user_logged_out
-from flask_socketio import SocketIO, send, emit, join_room, leave_room
+from flask_socketio import SocketIO, send, emit, join_room, leave_room, Namespace
+from flask_session import Session
 import random
 from string import ascii_uppercase 
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -8,10 +9,16 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = "gosho"
-socketio = SocketIO(app)
+#app.config['SECRET_KEY'] = 'gosho'
+app.secret_key = 'parola'
+app.config['SESSION_COOKIE_SECURE'] = False
+app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
+app.config['SESSION_SQLALCHEMY'] = db
+socketio = SocketIO(app)
+Session(app)
+
 online_users = set() ## later
 session_sids = {}
 rooms = {}
@@ -34,6 +41,7 @@ class ChatRoom(db.Model):
     __tablename__ = 'chatroom'
 
     id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
     user1_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user2_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
@@ -49,12 +57,9 @@ class ChatMessage(db.Model):
     room_id = db.Column(db.Integer, db.ForeignKey('chatroom.id'), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
-
-rooms = {}
 
 def generate_code(length):
     while True:
@@ -87,10 +92,11 @@ def index():
             rooms[room] = {"members" : 0, "messages": []}
         elif code not in rooms:
             return render_template("index.html", error="Room does not exist", code=code, name=name)
-        
-        session["room"] = room
-        session ["name"] = name
-        return redirect(url_for("room"))
+        if join != False:
+            session["room"] = room
+            session ["name"] = name
+            return redirect(url_for("room", room=room))
+
 
     return render_template("index.html")
 
@@ -102,21 +108,26 @@ def foo(username):
             join = request.form.get("join", False)
             create = request.form.get("create", False)
 
-            
-            if join and not code:
-                return render_template("index.html", error="Please enter a room code.")
+            if join != False or create != False:
 
+                if join != False and not code:
+                    return render_template("index.html", error="Please enter a room code.")
 
-            room = code
-            if create != False:
-                room = generate_code(4)
-                rooms[room] = {"members" : 0, "messages": []}
-            elif code not in rooms:
-                return render_template("index.html", error="Room does not exist", code=code)
-            
-            session["room"] = room
-            session ["name"] = username
-            return redirect(url_for("room"))
+                room = code
+                if create != False:
+                    room = generate_code(4)
+                    rooms[room] = {"members" : 0, "messages": []}
+                    session["room"] = room
+                    session ["name"] = username
+                    return redirect(url_for("room", room=room))
+
+                if join != False and code not in rooms:
+                    return render_template("index.html", error="Room does not exist", code=code)
+
+                session["room"] = room
+                session ["name"] = username
+                return redirect(url_for("room", room=room))
+
 
     return render_template("main.html")
 
@@ -200,52 +211,78 @@ def register():
     
     return render_template("register.html")
 
-#@app.route("/private", methods=["POST", "GET"])
-#def private():
-#    if request.method == "POST":
-#        username = current_user.username
-#        recipient_username = request.form.get("username")
-#        message = request.form.get("msg")
-#        current_time = datetime.now()
-#
-#        conn = sqlite3.connect('database.db')
-#
-#        conn.execute("INSERT INTO private_chats (username1, username2, messages, date) VALUES(?, ?, ?, ?)", (username, recipient_username, message, current_time))
-#
-#        ## conn.commit()
-#        conn.close()
-#        room = generate_code(5)
-#        rooms[room] = {"members" : 0, "messages": []}
-#        session["room"] = room
-#        session ["name"] = username ## nameri kak da slojish idto na usera v private.html i da mi pratish invite koito da go redirectva v chat staqta
-#        return redirect(url_for("room"))
+@app.route("/room/<room>")
+def room(room):
 
+    if current_user.is_authenticated:
+        chat_rooms = ChatRoom.query.all()
+        for roomchat in chat_rooms:
+            rooms[roomchat.name] = {'members' : 'private', 'messages' : []}
 
-
-@app.route("/room")
-def room():
-    room = session.get("room")
+        if room is None or current_user.username is None or room not in rooms:
+            print("code goes to redirect index")
+            return redirect(url_for("index"))
+        print("code is going to execute roomhtml messages")
+        return render_template("room.html", code=room, messages=rooms[room]["messages"])
+    else:
+        room = session.get("room")
     if room is None or session.get("name") is None or room not in rooms:
-        return redirect(url_for("index"))
+        render_template("index.html", error="something went wrong")
+
     return render_template("room.html", code=room, messages=rooms[room]["messages"])
 
 @socketio.on("invite")
 def invite_onsend(data):
-    recipient_id = int(data['recipient_id'])
-    recipient_sid = session_sids.get(recipient_id)
+    recipient_username = data['username']
+    recipient = User.query.filter_by(username=recipient_username).first()
+    recipient_sid = session_sids.get(recipient.id)
     if recipient_sid:
         sender_username = current_user.username
+        if not sender_username:
+            return render_template("main.html", error="sender_username didnt get value from current_user")
+        
         message = f'{sender_username} is inviting you to chat'
-        emit('receive_invite', message, room=recipient_sid)
+        emit('receive_invite', {"message" : message, "sender_username" : sender_username}, room=recipient_sid)
     else:
+        print("recipient is not online")
         render_template("main.html", error="Recipient is not online")
 
-@socketio.on("receive_invite")
-def invite_onreceive(data):
-    message = f"{data['sender']} is inviting you to chat"
-    emit("invitation_received", {"message": message}, to=current_user.sid)
+@socketio.on("begin_privatechat")
+@login_required
+def begin_chat(data):
 
+    if data['sender_or_reciever'] == 'reciever':
+        sender = User.query.filter_by(username=data['sender_username']).first()
+        recipient = User.query.filter_by(username=current_user.username).first()
 
+        if not ChatRoom.query.filter_by(user1_id=sender.id, user2_id=recipient.id).first():
+            room = generate_code(5)
+            new_chatroom = ChatRoom(name=room, user1_id=sender.id, user2_id=recipient.id)
+            db.session.add(new_chatroom)
+            db.session.commit()
+            session["room"] = room
+            session["name"] = recipient.username
+            socketio.emit('recipient_accept_invite', {"room" : room}, room=session_sids.get(sender.id))
+            return redirect(url_for("room", room=room))
+        else:
+            room = ChatRoom.query.filter_by(user1_id=sender.id, user2_id=recipient.id).first()
+            session["room"] = room.name
+            session["name"] = current_user.username
+            
+            join_room(room.name)
+            # Emit a 'redirect' event to the client 
+            url = url_for("room", room=room.name)
+            socketio.emit('recipient_accept_invite', {"room" : room.name}, room=session_sids.get(sender.id))
+            socketio.emit('redirect', {'url' : url}, room = request.sid)
+            return redirect(url_for("room", room=room.name))
+
+    #elif data['sender_or_reciever'] == 'sender':
+    #    session["room"] = data['room']
+    #    session["name"] = current_user.username
+    #    join_room(data['room'])
+    #    url = url_for("room", room=data['room'])
+    #    socketio.emit('redirect', {'url' : url}, room = request.sid)
+    #    return redirect(url_for("room", room=data['room']))
 
 
 @socketio.on("message")
@@ -281,11 +318,13 @@ def connect(auth):
         print(f"{name} joined room {room}")
 
     else:
-        session_id = request.args.get('session.id')
+        room = session.get("room")
+        name = session.get("name")
+        join_room(room)
         session_sids[current_user.id] = request.sid
         print("code went here!!!!!!!!")
         message = {'message': 'Connected'}
-        send(message, to=session_sids[current_user.id])
+        socketio.emit(message, to=session_sids[current_user.id])
 
 
 
@@ -294,14 +333,18 @@ def disconnect():
    ## if not current_user.is_authenticated:
         room = session.get("room")
         name = session.get("name")
+        print("ENTERING DISCONNECT ON!!!!!!!!!!!!!!!!!!!!!!!!")
         if room in rooms:
             rooms[room]["members"] -= 1
             if rooms[room]["members"] <= 0:
                 del rooms[room]
         send({"name": name, "message" : "has left the room"}, to=room)
         print(f"{name} has left room {room}")
-
+        if not current_user.is_authenticated:
+            logout_user
+        print("user logged out")
    ## else:
+    
 
 
 
@@ -309,4 +352,4 @@ def disconnect():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    socketio.run(app, host="localhost", debug=True) 
+    socketio.run(app, host="localhost", debug=False) 

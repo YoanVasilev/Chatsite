@@ -19,9 +19,41 @@
         </ul>
         {% endif %}
     </form>
+    <button onclick="openPopup()">Open Popup</button>
+
+<div id="popup" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; width: 400px; height: 300px; border: 1px solid black; padding: 10px;">
+  <h2>Popup Content</h2>
+  <p>This is the content of the popup.</p>
+  <form>
+    <input type="text" name="input">
+    <button onclick="submitForm(event)">Submit</button>
+  </form>
+  <button onclick="closePopup()">Close</button>
+</div>
     <h3>
         want private messages?
         then register
     </h3>
-
+    <script>
+        function openPopup() {
+          // Show the popup by changing its CSS display property
+          document.getElementById("popup").style.display = "block";
+        }
+        
+        function closePopup() {
+          // Hide the popup by changing its CSS display property
+          document.getElementById("popup").style.display = "none";
+        }
+        
+        function submitForm(event) {
+          // Prevent the default form submission behavior
+          event.preventDefault();
+          
+          var input = document.getElementsByName("input")[0].value;
+          console.log("Form submitted with input: " + input);
+          
+          // Close the popup
+          closePopup();
+        }
+        </script>
 {% endblock %}
