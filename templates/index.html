@@ -1,7 +1,24 @@
 {% extends 'base.html' %}
 {% block content %}
+  {% if current_user.is_authenticated %}
+    <h2>Logged in as {{ current_user.username }}</h2>
+    <form method="post" class="buttons" name="Join a public room by code or create one">
+      <h1> Enter A Chat Room</h1>
+      <div class="join">
+        <input type="text" placeholder="Room Code" name="code" value="{{code}}"/>
+        <button type="submit" name="join" >Join a Room</button>
+      </div>
+      <button type="submit" name="create" class="create-btn">Create a Room</button>
+    </form>
+
+    <form method="post" class="invite" name="form for inviting a person for a 1 on 1 chat">
+      <h2>Invite a person to 1 on 1 chat room</h2>
+      <input type="text" placeholder="recipient" name="username" id="recipient"/>
+      <button type="button" name="invite" onclick="sendInvite" id="invite-btn"> Invite </button>
+    </form>
+  {% else %}
+    <h1>Enter The Chat Room</h1>
     <form method="post" class="buttons">
-        <h1>Enter The Chat Room</h1>
         <div>
             <label>Name:</label>
             <input type="text" placeholder="Pick a name" name="name" value="{{name}}"/>
@@ -11,49 +28,38 @@
             <button type="submit" name="join" >Join a Room</button>
         </div>
         <button type="submit" name="create" class="create-btn">Create a Room</button>
-        {% if error %}
-        <ul>
-            <li>
-                {{error}}
-            </li>
-        </ul>
-        {% endif %}
     </form>
-    <button onclick="openPopup()">Open Popup</button>
-
-<div id="popup" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; width: 400px; height: 300px; border: 1px solid black; padding: 10px;">
-  <h2>Popup Content</h2>
-  <p>This is the content of the popup.</p>
-  <form>
-    <input type="text" name="input">
-    <button onclick="submitForm(event)">Submit</button>
-  </form>
-  <button onclick="closePopup()">Close</button>
-</div>
     <h3>
-        want private messages?
-        then register
+      want private messages?
+      then register
     </h3>
-    <script>
-        function openPopup() {
-          // Show the popup by changing its CSS display property
-          document.getElementById("popup").style.display = "block";
-        }
-        
-        function closePopup() {
-          // Hide the popup by changing its CSS display property
-          document.getElementById("popup").style.display = "none";
-        }
-        
-        function submitForm(event) {
-          // Prevent the default form submission behavior
-          event.preventDefault();
-          
-          var input = document.getElementsByName("input")[0].value;
-          console.log("Form submitted with input: " + input);
-          
-          // Close the popup
-          closePopup();
-        }
-        </script>
+  {% endif %}
+
+
+  {% if error %}
+  <ul>
+      <li>
+          {{error}}
+      </li>
+  </ul>
+  {% endif %}
+  
+<script type="text/javascript">
+  var socketio = io()
+
+  function sendInvite() {
+    recipient = $('#recipient').val();
+    socketio.emit('invite', {recipient: recipient});
+  }
+
+  socketio.on('accept_invite', function(data) {
+    socketio.emit('accept_invite', {'room_name' : data['room_name']})
+  })
+
+  socketio.on('redirect_to_chat', function(data) {
+    var roomName = data['room_name'];
+    window.location.href = '/room/' + roomName;
+  })
+</script>
+
 {% endblock %}
