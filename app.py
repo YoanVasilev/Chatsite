@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user, user_logged_in, user_logged_out
-from flask_socketio import SocketIO, send, emit, join_room, leave_room, Namespace
+from flask_socketio import SocketIO, send, emit, join_room, leave_room, Namespace, disconnect
 from flask_session import Session
 import random
 from string import ascii_uppercase 
@@ -363,7 +363,7 @@ def disconnect():
         print(f"{current_user.username} is disconnecting from a private chat room")
         chatroom = ChatRoom.query.filter_by(id=current_user.chatroom_id)
         leave_room(chatroom.name)
-        print(f"{current_user.username} has left the public room {(request.referrer).split('/')[-1]}")
+        print(f"{current_user.username} has left the private room {(request.referrer).split('/')[-1]}")
         send({"name": current_user.username, "message" : "has left the room"}, to=chatroom.name)
         current_user.chatroom_id = None
         db.session.commit()
