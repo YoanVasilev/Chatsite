@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% block content %}
 {% if current_user.is_authenticated and user_room == room %}
-<head><script src="{{ url_for('static', filename='private_chat_script.js') }}"></script></head>
+   <!-- <script src="{{ url_for('static', filename='private_chat_script.js') }}"></script> -->
     <div class="message-box">
         <h2 class="chat-title">Chat with {{friend}}</h2>
         <div class="messages" id="messages"></div>
         <div class="inputs">
             <input type="text" rows="3" placeholder="Message" name="message" id="message"/>
-            <button type="button" name="send" id="send-btn" onclick="sendMessage()"> Send </button>
+            <button type="button" name="send" id="send-btn" onclick="sendMessagePrivate()"> Send </button>
         </div>
     </div>
 {% for msg in room_messages %}
@@ -17,13 +17,13 @@
 {% endfor %}
 
 {% else %}
-<head><script src="{{ url_for('static', filename='public_chat_script.js') }}"></script></head>
+<!-- <head><script src="{{ url_for('static', filename='public_chat_script.js') }}"></script></head> -->
     <div class="message-box">
-        <h2 class="chat-title">Chat Room: {{code}}</h2>
+        <h2 class="chat-title">Chat Room: {{room}}</h2>
         <div class="messages" id="messages"></div>
         <div class="inputs">
             <input type="text" rows="3" placeholder="Message" name="message" id="message"/>
-            <button type="button" name="send" id="send-btn" onclick="sendMessage()"> Send </button>
+            <button type="button" name="send" id="send-btn" onclick="sendMessagePublic()"> Send </button>
         </div>
     </div>
 {% for msg in sent_messages %}
@@ -32,4 +32,42 @@
     </script>
 {% endfor %}
 {% endif %}
+
+<script type="text/javascript">
+// Get the input field
+var input = document.getElementById("message");
+
+// Execute a function when the user presses a key on the keyboard
+input.addEventListener("keypress", function(event) {
+// If the user presses the "Enter" key on the keyboard
+if (event.key === "Enter") {
+    // Cancel the default action, if needed
+    event.preventDefault();
+    // Trigger the button element with a click
+    document.getElementById("send-btn").click();
+}
+});
+var socketio = io();
+
+const messages = document.getElementById("messages");
+
+socketio.on("message", (data) => {
+    createMessage(data.name, data.message);
+});
+
+const sendMessagePrivate = () => {
+    const message = document.getElementById("message");
+    if (message.value == "") return;
+    socketio.emit("message", {data: message.value, 'private_or_public' : 'private'});
+    message.value = "";
+};
+
+const sendMessagePublic = () => {
+    const message = document.getElementById("message");
+    if (message.value == "") return;
+    socketio.emit("message", {data: message.value, 'private_or_public' : 'public'});
+    message.value = "";
+};
+</script>
+
 {% endblock %}

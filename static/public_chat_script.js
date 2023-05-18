@@ -16,22 +16,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
     const messages = document.getElementById("messages");
     
-    /*const createMessage = (name, msg) => {
-        const content = `
-        <div class="text">
-            <span>
-                <strong>${name}</strong>: ${msg}
-            </span>
-            <span class="muted">
-                ${new Date().toLocaleString()} <!-- Show local time, need to find better way cuz it shows the time when messages are recieved by the server not sent -->
-            </span>
-        </div>
-        `;
-
-        messages.innerHTML += content;
-
-    };
-    */
     socketio.on("message", (data) => {
         createMessage(data.name, data.message);
     });

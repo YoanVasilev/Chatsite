@@ -76,9 +76,8 @@
     window.location.href = '/room/' + roomName;
   })
 
-  window.addEventListener('beforeunload', function() {
-    socket.emit("disconnect");
-  });
+  //window.addEventListener('beforeunload', function() {
+  //  socket.emit("disconnect");});
 </script>
 
 {% endblock %}

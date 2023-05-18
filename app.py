@@ -211,7 +211,7 @@ def room(room):
             if room not in rooms:
                 print('user is in a public room that doesnt exist')
                 return redirect(url_for('index'))
-            return render_template("room.html", code=room, sent_messages=rooms[room]["messages"])
+            return render_template("room.html", room=room, sent_messages=rooms[room]["messages"])
         if current_user.chatroom_id is not None:
             room_from_id = ChatRoom.query.filter_by(id=current_user.chatroom_id).first()
             if room_from_id.name != room:
@@ -240,7 +240,7 @@ def room(room):
         if room is None or session.get("name") is None or room not in rooms:
             render_template("index.html", error="something went wrong")
 
-        return render_template("room.html", code=room, sent_messages=rooms[room]["messages"])
+        return render_template("room.html", room=room, sent_messages=rooms[room]["messages"])
 
 @socketio.on("invite")
 def handle_invite(data): # this code is intended to run by the sender
