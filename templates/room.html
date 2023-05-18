@@ -1,64 +1,73 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="message-box">
-    <h2>Chat Room: {{code}}</h2>
-    <div class="messages" id="messages"></div>
-    <div class="inputs">
-        <input type="text" rows="3" placeholder="Message" name="message" id="message"/>
-        <button type="button" name="send" id="send-btn" onclick="sendMessage()"> Send </button>
-    </div>
-</div>
-<script type="text/javascript">
-        // Get the input field
-    var input = document.getElementById("message");
-
-    // Execute a function when the user presses a key on the keyboard
-    input.addEventListener("keypress", function(event) {
-    // If the user presses the "Enter" key on the keyboard
-    if (event.key === "Enter") {
-        // Cancel the default action, if needed
-        event.preventDefault();
-        // Trigger the button element with a click
-        document.getElementById("send-btn").click();
-    }
-    });
-</script>
-<script type="text/javascript">
-    var socketio = io();
-
-    const messages = document.getElementById("messages");
-    
-    const createMessage = (name, msg) => {
-        const content = `
-        <div class="text">
-            <span>
-                <strong>${name}</strong>: ${msg}
-            </span>
-            <span class="muted">
-                ${new Date().toLocaleString()} <!-- Show local time, need to find better way cuz it shows the time when messages are recieved by the server not sent -->
-            </span>
+{% if current_user.is_authenticated and user_room == room %}
+   <!-- <script src="{{ url_for('static', filename='private_chat_script.js') }}"></script> -->
+    <div class="message-box">
+        <h2 class="chat-title">Chat with {{friend}}</h2>
+        <div class="messages" id="messages"></div>
+        <div class="inputs">
+            <input type="text" rows="3" placeholder="Message" name="message" id="message"/>
+            <button type="button" name="send" id="send-btn" onclick="sendMessagePrivate()"> Send </button>
         </div>
-        `;
+    </div>
+{% for msg in room_messages %}
+    <script type="text/javascript">
+        createMessage("{{ msg[1] }}", "{{ msg[0] }}");
+    </script>
+{% endfor %}
 
-        messages.innerHTML += content;
-
-    };
-
-    socketio.on("message", (data) => {
-        createMessage(data.name, data.message);
-    });
-
-    const sendMessage = () => {
-        const message = document.getElementById("message");
-        if (message.value == "") return;
-        socketio.emit("message", {data: message.value});
-        message.value = "";
-    };
-</script>
-{% for msg in messages %}
+{% else %}
+<!-- <head><script src="{{ url_for('static', filename='public_chat_script.js') }}"></script></head> -->
+    <div class="message-box">
+        <h2 class="chat-title">Chat Room: {{room}}</h2>
+        <div class="messages" id="messages"></div>
+        <div class="inputs">
+            <input type="text" rows="3" placeholder="Message" name="message" id="message"/>
+            <button type="button" name="send" id="send-btn" onclick="sendMessagePublic()"> Send </button>
+        </div>
+    </div>
+{% for msg in sent_messages %}
     <script type="text/javascript">
         createMessage("{{msg.name}}", "{{msg.message}}")
     </script>
 {% endfor %}
+{% endif %}
+
+<script type="text/javascript">
+// Get the input field
+var input = document.getElementById("message");
+
+// Execute a function when the user presses a key on the keyboard
+input.addEventListener("keypress", function(event) {
+// If the user presses the "Enter" key on the keyboard
+if (event.key === "Enter") {
+    // Cancel the default action, if needed
+    event.preventDefault();
+    // Trigger the button element with a click
+    document.getElementById("send-btn").click();
+}
+});
+var socketio = io();
+
+const messages = document.getElementById("messages");
+
+socketio.on("message", (data) => {
+    createMessage(data.name, data.message);
+});
+
+const sendMessagePrivate = () => {
+    const message = document.getElementById("message");
+    if (message.value == "") return;
+    socketio.emit("message", {data: message.value, 'private_or_public' : 'private'});
+    message.value = "";
+};
+
+const sendMessagePublic = () => {
+    const message = document.getElementById("message");
+    if (message.value == "") return;
+    socketio.emit("message", {data: message.value, 'private_or_public' : 'public'});
+    message.value = "";
+};
+</script>
 
 {% endblock %}

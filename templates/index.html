@@ -1,27 +1,83 @@
 {% extends 'base.html' %}
 {% block content %}
+  {% if current_user.is_authenticated %}
+  <h2>Logged in as <strong>{{ current_user.username }}</strong></h2>
+
+    <!-- Form for joining or creating a public room -->
+    <div class="form-container join-form">
     <form method="post" class="buttons">
-        <h1>Enter The Chat Room</h1>
-        <div>
-            <label>Name:</label>
-            <input type="text" placeholder="Pick a name" name="name" value="{{name}}"/>
-        </div>
-        <div class="join">
-            <input type="text" placeholder="Room Code" name="code" value="{{code}}"/>
-            <button type="submit" name="join" >Join a Room</button>
-        </div>
-        <button type="submit" name="create" class="create-btn">Create a Room</button>
-        {% if error %}
-        <ul>
-            <li>
-                {{error}}
-            </li>
-        </ul>
-        {% endif %}
+      <h1>Enter a Chat Room</h1>
+      <div class="input-container" class="join">
+        <input type="text" placeholder="Room Code" name="code" value="{{ code }}"/>
+      </div>
+      <button type="submit" name="join" class="join">Join a Room</button>
+      <button type="submit" name="create" class="create-btn">Create a Room</button>
+    </div>
     </form>
-    <h3>
-        want private messages?
-        then register
-    </h3>
+  
+    <!-- Form for inviting a person to a 1 on 1 chat room -->
+    <div class="form-container invite-form">
+      <h1>Invite a Person to 1 on 1 Chat Room</h1>
+      <div class="input-container">
+        <input type="text" placeholder="Recipient" name="username" id="recipient"/>
+      </div>
+      <button type="button" name="invite" onclick="sendInvite()">Invite</button>
+    </div>
+  
+    <!-- Logout buttons -->
+    <a href="{{ url_for('logout') }}" class="button-link">
+      <button type="button" type="logout" class="logout-btn">Logout</button>
+    </a>
+  
+  {% else %}
+  <h1 class="header">Enter the Chat Room</h2>
+
+  <!-- Form for joining or creating a public room -->
+  <div class="form-container join-form">
+  <form method="post" class="buttons">
+    <h1>Want private messages? <a href="{{ url_for('register') }}">Register</a></h1>
+    <div class="input-container" class="join">
+      <input type="text" placeholder="Pick a name" name="name" value="{{name}}"/>
+      <input type="text" placeholder="Room Code" name="code" value="{{ code }}"/>
+    </div>
+    <button type="submit" name="join" class="join">Join a Room</button>
+    <button type="submit" name="create" class="create-btn">Create a Room</button>
+  </div>
+  </form>
+    
+  <a href="{{ url_for('login') }}" class="button-link">
+  <button type="login" class="login-btn">Login</button>
+  </a>
+  {% endif %}
+
+
+  {% if error %}
+  <ul>
+      <li>
+          {{error}}
+      </li>
+  </ul>
+  {% endif %}
+  
+<script type="text/javascript">
+  var socketio = io()
+
+  function sendInvite() {
+    recipient = $('#recipient').val();
+    socketio.emit('invite', {recipient: recipient});
+  }
+
+  socketio.on('accept_invite', function(data) {
+    socketio.emit('accept_invite', {'room_name' : data['room_name']})
+  })
+
+  socketio.on('redirect_to_chat', function(data) {
+    var roomName = data['room_name'];
+    window.location.href = '/room/' + roomName;
+  })
+
+  //window.addEventListener('beforeunload', function() {
+  //  socket.emit("disconnect");});
+</script>
 
 {% endblock %}
