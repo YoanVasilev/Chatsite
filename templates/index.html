@@ -14,7 +14,7 @@
     <form method="post" class="invite" name="form for inviting a person for a 1 on 1 chat">
       <h2>Invite a person to 1 on 1 chat room</h2>
       <input type="text" placeholder="recipient" name="username" id="recipient"/>
-      <button type="button" name="invite" onclick="sendInvite" id="invite-btn"> Invite </button>
+      <button type="button" name="invite" onclick="sendInvite()" id="invite-btn"> Invite </button>
     </form>
   {% else %}
     <h1>Enter The Chat Room</h1>
@@ -60,6 +60,10 @@
     var roomName = data['room_name'];
     window.location.href = '/room/' + roomName;
   })
+
+  window.addEventListener('beforeunload', function() {
+    socket.emit("disconnect");
+  });
 </script>
 
 {% endblock %}
