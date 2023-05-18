@@ -1,26 +1,192 @@
+/*
 .content {
     display: flex;
     align-items: center;
     justify-content: center;
 }
+*/
 
-.buttons {
+body {
+    font-family: Arial, sans-serif;
+    background-color: #393a3b;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80%;
+  }
+
+  h2, .header {
+    color: #ffffff;
+    text-align: center;
+  }
+
+  .container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
+  }
 
-.join {
-    display: flex;
-    flex-direction: row;
-    width: 100%;
-}
+  .form-container {
+    background-color: #cecece;
+    padding: 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    width: 450px; /* Adjust the width as needed */
+  }
 
-.create-btn {
+  .form-container h1 {
+    font-size: 24px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  .form-container .input-container {
+    margin-bottom: 20px;
+  }
+
+  .form-container input[type="text"],
+  .form-container button[type="submit"],
+  .form-container button[type="button"] {
+    display: block;
+    width: 60%;
+    padding: 10px;
+    font-size: 16px;
+    border: none;
+    border-radius: 4px;
+    margin: 0 auto;
+  }
+
+  .form-container button[type="submit"] {
+    margin-top: 10px;
+    background-color: #4caf50;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .form-container.create-form button[type="submit"] {
+    background-color: #2196f3;
+  }
+
+  .form-container.invite-form button[type="button"] {
+    background-color: #1a1a1a;
+    color: #ffffff;
+  }
+
+  ul li {
+ 
+    color: #ffffff;
+    font-size: large;
+
+  }
+
+  .logout-btn, .login-btn {
+    display: block;
     width: 100%;
-}
+    padding: 10px;
+    background-color: #ff5722;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: large;
+    font-weight:bold;
+  }
+
+  .form-container input[type="text"] {
+    margin-bottom: 5px;
+  }
+
+  
+  button[type="submit"]:hover,
+  button[type="button"]:hover {
+    transform: scale(0.98);
+  }
+
+    button[type="submit"]:active,
+    button[type="logout"]:active,
+    button[type="button"]:active,
+    button[type="invite"]:active,
+    button[type="logout"]:focus,
+    button[type="submit"]:focus,
+    button[type="button"]:focus {
+      transform: scale(0.95);  
+      transition: transform 0.2s ease;
+    }
+
+    .logout-btn:active {
+        transform: scale(0.70);
+        transition: transform 0.2s ease;
+      }
+
+
+      .logout-btn:focus {
+        transform: scale(0.70);
+        transition: transform 0.2s ease;
+      }
+
+      .button-link {
+        text-decoration: none;
+      }
+
+      .login-btn:active {
+        transform: scale(0.70);
+        transition: transform 0.2s ease;
+      }
+
+
+      .login-btn:focus {
+        transform: scale(0.70);
+        transition: transform 0.2s ease;
+      }
+
+    .reg-link {
+        color:white;
+    }
+
+    .input-container {
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .form-group {
+        margin-bottom: 15px;
+      }
+      
+      .form-control {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        margin-top:10%;
+      }
+      
+      .btn-primary {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        display: block;
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+        color: #fff;
+        background-color: #007bff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 20%;
+        margin-left:5%;
+      }
+      
+      .btn-primary:hover {
+        background-color: #0069d9;
+      }
+
 
 .message-box {
     border-color: black;
@@ -33,8 +199,12 @@
     flex-direction: column;
     width: 80vw;
     align-items: stretch;
-
 }
+
+div.message-box h2.chat-title {
+    color: black!important;
+}
+
 
 .messages {
     overflow-y: scroll;
@@ -48,15 +218,11 @@
 
 }
 
-h2 {
-    text-align: center;
-    
-}
-
 #message {
     flex: 1;
 }
 
+/*
 .text {
     display: flex;
     flex-direction: row;
@@ -66,8 +232,12 @@ h2 {
     padding-right: 10px;
 
 }
+*/
+
 
 .muted {
     font-size: 10px;
     color: darkgray;
 }
+
+

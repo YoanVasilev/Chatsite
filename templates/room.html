@@ -3,7 +3,7 @@
 {% if current_user.is_authenticated and user_room == room %}
 <head><script src="{{ url_for('static', filename='private_chat_script.js') }}"></script></head>
     <div class="message-box">
-        <h2>Chat with {{friend}}</h2>
+        <h2 class="chat-title">Chat with {{friend}}</h2>
         <div class="messages" id="messages"></div>
         <div class="inputs">
             <input type="text" rows="3" placeholder="Message" name="message" id="message"/>
@@ -19,7 +19,7 @@
 {% else %}
 <head><script src="{{ url_for('static', filename='public_chat_script.js') }}"></script></head>
     <div class="message-box">
-        <h2>Chat Room: {{code}}</h2>
+        <h2 class="chat-title">Chat Room: {{code}}</h2>
         <div class="messages" id="messages"></div>
         <div class="inputs">
             <input type="text" rows="3" placeholder="Message" name="message" id="message"/>

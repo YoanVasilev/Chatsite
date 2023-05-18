@@ -2,19 +2,23 @@
 
 {% block content %}
     <form action="/login" method="post">
+    <div class="input-container" class="login-container" class="join">
         <div class="mb-3">
             <input autocomplete="off" autofocus class="form-control mx-auto w-auto" id="username" name="username" placeholder="Username" type="text">
         </div>
         <div class="mb-3">
             <input class="form-control mx-auto w-auto" id="password" name="password" placeholder="Password" type="password">
         </div>
-        <button class="btn btn-primary" type="submit">Log In</button>
+    </div>
+        <a href="/logout" class="button-link">
+        <button type="submit" type="logout" class="btn btn-primary" type="submit">Log In</button>
+        </a>
     </form>
 
     <div>
         <br>
         Not registered?
-        <a href="/register">Click here</a>
+        <a class="reg-link" href="/register">Click here</a>
     </div>
     {% if error %}
     <ul>

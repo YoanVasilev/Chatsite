@@ -26,9 +26,6 @@ rooms = {}
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-##@user_logged_in.connect
-##def handle_user_logged_in(sender, user, **kwargs):  saving this for later in order to see if a user is online or not
-##    online_users.add(user.id)
 
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
@@ -76,11 +73,6 @@ def generate_code(length):
 
 @app.route("/", methods=["POST", "GET"])
 def index():
-        
-    #if current_user.is_authenticated:
-        #join_room(current_user.username)
-    #else:
-        #join_room(session['username'])
 
     if request.method == ("POST"):
 
@@ -213,18 +205,20 @@ def register():
 @app.route("/room/<room>")
 def room(room):
 
-    if current_user.is_authenticated: # going to a private chat room
+    if current_user.is_authenticated: 
         if current_user.chatroom_id is None:
-            print("current user chatroom_id is none, hopefully u dont go private")
             room = room
-            if room is None or session.get("name") is None:
-                return redirect(url_for("index"))
+            if room not in rooms:
+                print('user is in a public room that doesnt exist')
+                return redirect(url_for('index'))
             return render_template("room.html", code=room, sent_messages=rooms[room]["messages"])
         if current_user.chatroom_id is not None:
             room_from_id = ChatRoom.query.filter_by(id=current_user.chatroom_id).first()
             if room_from_id.name != room:
-                print("user has chatroom_id but its not the one expected")
-                return render_template("index.html", error="user has chatroom_id but its not the one expected")
+                print("user has chatroom_id but its not the one expected (most likely didnt clear on disconnect)")
+                current_user.chatroom_id = None
+                db.session.commit()
+                return redirect(url_for("index"))
         
         chatroom = ChatRoom.query.filter_by(name=room).first()
         room_messages = db.session.query(ChatMessage.content, User.username).join(User, ChatMessage.sender_id == User.id)\
@@ -239,11 +233,14 @@ def room(room):
         return render_template("room.html", room_messages=room_messages, current=current_user, friend = friend.username, user_room = room_from_id.name, room=room)
     
     else:
-        room = session.get("room")
-    if room is None or session.get("name") is None or room not in rooms:
-        render_template("index.html", error="something went wrong")
+        if room not in rooms:
+                print('user is in a public room that doesnt exist')
+                return redirect(url_for('index'))
+        room = session['room']
+        if room is None or session.get("name") is None or room not in rooms:
+            render_template("index.html", error="something went wrong")
 
-    return render_template("room.html", code=room, sent_messages=rooms[room]["messages"])
+        return render_template("room.html", code=room, sent_messages=rooms[room]["messages"])
 
 @socketio.on("invite")
 def handle_invite(data): # this code is intended to run by the sender
@@ -253,6 +250,8 @@ def handle_invite(data): # this code is intended to run by the sender
     recipient = User.query.filter_by(username=recipient_username).first()
     if recipient is not None:
         chatroom = ChatRoom.query.filter_by(user1_id=sender.id, user2_id=recipient.id).first()
+        if chatroom is None:
+            chatroom = ChatRoom.query.filter_by(user1_id=recipient.id, user2_id=sender.id).first()
         if chatroom is None:
             room = generate_code(5)
             new_chatroom = ChatRoom(name=room, user1_id=sender.id, user2_id=recipient.id)
@@ -276,11 +275,7 @@ def handle_invite(data): # this code is intended to run by the sender
         join_room(chatroom.name)
         socketio.emit('accept_invite', {'room_name': chatroom.name}, room=session_sids[recipient.id])
         socketio.emit('redirect_to_chat', {'room_name': chatroom.name}, room=session_sids[sender.id])
-            #if not sender_username:
-              #  return render_template("main.html", error="sender_username didnt get value from current_user")
         
-        #message = f'{sender_username} is inviting you to chat'
-        #emit('receive_invite', {"message" : message, "sender_username" : sender_username}, room=recipient_sid)
     else:
         print("recipient is not online")
         render_template("index.html", error="Recipient is not online")
@@ -338,20 +333,13 @@ def connect(auth):
         join_room(location_chatroom.name)
         print(f"{current_user.username} connected to a private chat room")
         send({"name": current_user.username, "message" : "has entered the room"}, to=location_chatroom.name)
-        return
-        #else:
-        #    print("user is not from that room")
-        #    return
-    elif current_user.is_authenticated and len((request.referrer).split("/")[-1]) == 4:
-        session_sids[current_user.id] = request.sid
-        #join_room(current_user.username)
-        print(f"{current_user.username} connected to a public chat")
-
         
+
     else:
-        if current_user is not None:
+        if current_user.is_authenticated:
             session_sids[current_user.id] = request.sid
-            print(f"{current_user.username} went to main page and connected")
+            print(f"{current_user.username} connected")
+
         room = session.get("room")
         name = session.get("name")
         if not room or not name:
@@ -359,42 +347,46 @@ def connect(auth):
         if room not in rooms:
             leave_room(room)
             return
-        
+
         join_room(room)
         send({"name": name, "message" : "has entered the room"}, to=room)
         print(f"the name of the room is {(request.referrer).split('/')[-1]} and its length is {len((request.referrer).split('/')[-1])}")
         rooms[room]["members"] += 1
         print(f"{name} joined room {room}")
-        return
+
 
 
 
 @socketio.on("disconnect")
 def disconnect():
-    #if current_user.is_authenticated and current_user.chatroom_id is not None:
     if current_user.is_authenticated and len((request.referrer).split("/")[-1]) == 5:
         print(f"{current_user.username} is disconnecting from a private chat room")
         chatroom = ChatRoom.query.filter_by(id=current_user.chatroom_id)
-        #leave_room(chatroom.name)
-        #current_user.chatroom_id = None
-        #db.session.commit()
-        #send({"name": current_user.username, "message" : "has left the room"}, to=chatroom.name)
-        #session_sids.pop(current_user.id, None)
+        leave_room(chatroom.name)
+        print(f"{current_user.username} has left the public room {(request.referrer).split('/')[-1]}")
+        send({"name": current_user.username, "message" : "has left the room"}, to=chatroom.name)
+        current_user.chatroom_id = None
+        db.session.commit()
+        send({"name": current_user.username, "message" : "has left the room"}, to=chatroom.name)
+        session_sids.pop(current_user.id, None)
+    
     elif len((request.referrer).split("/")[-1]) == 4:
-        print(f"{session.get('name')} is disconnecting and has no chatroom_id")
-        
+        if current_user.chatroom_id is not None:
+            current_user.chatroom_id = None
+            return redirect(url_for('index'))
+
         room = session.get("room")
         name = session.get("name")
-        leave_room(room) # see what happens with this
+        leave_room(room)
 
         if room in rooms:
             rooms[room]["members"] -= 1
             if rooms[room]["members"] <= 0:
                 del rooms[room]
-
-        send({"name": name, "message" : "has left the room"}, to=room)
-        print(f"{name} has left room {room}")
-        if current_user:
+    
+        send({"name": name, "message": "has left the room"}, to=room)
+        print(f"{name} has left the public room {room}")
+        if current_user.is_authenticated:
             session_sids.pop(current_user.id, None)
     
 
